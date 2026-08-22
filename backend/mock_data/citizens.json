@@ -1,0 +1,9 @@
+[
+  { "id": "cit_001", "name": "Ravi Kumar", "phone": "+919876543210", "lat": 11.935, "lng": 79.830, "language": "ta" },
+  { "id": "cit_002", "name": "Ananya Sharma", "phone": "+919876543211", "lat": 11.942, "lng": 79.825, "language": "en" },
+  { "id": "cit_003", "name": "Vikram Das", "phone": "+919876543212", "lat": 12.010, "lng": 79.900, "language": "ta" },
+  { "id": "cit_004", "name": "Karthik R", "phone": "+919876543213", "lat": 11.931, "lng": 79.829, "language": "ta" },
+  { "id": "cit_005", "name": "Sneha P", "phone": "+919876543214", "lat": 11.950, "lng": 79.810, "language": "en" },
+  { "id": "tow_001", "name": "Cell Tower Beach Rd", "type": "cell_tower", "cell_id": "TAC-440-101", "lat": 11.936, "lng": 79.832, "radius_km": 2.0 },
+  { "id": "tow_002", "name": "Cell Tower West Suburb", "type": "cell_tower", "cell_id": "TAC-440-102", "lat": 12.020, "lng": 79.890, "radius_km": 3.5 }
+]
