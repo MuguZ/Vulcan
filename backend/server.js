@@ -10,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. Create HTTP & WebSocket server wrapper
+// 1. HTTP & WebSocket Server Initialization
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -19,8 +19,6 @@ let clients = [];
 wss.on('connection', (ws) => {
   clients.push(ws);
   console.log(`[WS] Client connected. Total active clients: ${clients.length}`);
-
-  // Send initial handshake confirmation to the client
   ws.send(JSON.stringify({ event: 'CONNECTED', message: 'Connected to Vulcan Realtime Engine' }));
 
   ws.on('close', () => {
@@ -29,7 +27,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Broadcast helper to stream data to test client, Sara's dashboard, and Muthu's simulator
 function broadcastEvent(payload) {
   const data = JSON.stringify(payload);
   clients.forEach((client) => {
@@ -39,7 +36,7 @@ function broadcastEvent(payload) {
   });
 }
 
-// Windows Python venv binary path
+// 2. Python Spatial Geofencing Process Hook
 const pythonExecutable = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
 
 function runSpatialFilter(polygon, points) {
@@ -69,7 +66,142 @@ function runSpatialFilter(polygon, points) {
   });
 }
 
-// 1. Geofence Preview Endpoint (Sara's HUD)
+// 3. Shelters Directory & Haversine Routing Engine
+const shelters = [
+  { id: "sh_01", name: "Coastal Community Center A", lat: 11.940, lng: 79.835, capacity: 500 },
+  { id: "sh_02", name: "Government High School Relief Hall", lat: 11.928, lng: 79.820, capacity: 1200 },
+  { id: "sh_03", name: "Central Indoor Stadium", lat: 11.952, lng: 79.815, capacity: 3000 }
+];
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(2));
+}
+
+function findNearestShelter(userLat, userLng) {
+  let nearest = null;
+  let minDistance = Infinity;
+
+  for (const s of shelters) {
+    const dist = calculateDistance(userLat, userLng, s.lat, s.lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearest = { ...s, distance_km: dist };
+    }
+  }
+  return nearest;
+}
+
+const alertTranslations = {
+  ta: {
+    CYCLONE: "புயல் எச்சரிக்கை: உடனடியாக பாதுகாப்பான நிவாரண முகாமுக்கு செல்லவும்.",
+    FLOOD: "வெள்ள எச்சரிக்கை: மேடான பகுதிக்கு உடனடியாக செல்லவும்.",
+    TSUNAMI: "சுனாமி எச்சரிக்கை: கடலோர பகுதியை விட்டு உடனடியாக வெளியேறவும்."
+  },
+  hi: {
+    CYCLONE: "चक्रवात चेतावनी: तुरंत निकटतम राहत शिविर में पहुंचे।",
+    FLOOD: "बाढ़ चेतावनी: तुरंत ऊंचे स्थान पर जाएं।",
+    TSUNAMI: "सुनामी चेतावनी: तुरंत तटीय क्षेत्र खाली करें।"
+  },
+  en: {
+    CYCLONE: "Cyclone Warning: Evacuate to the nearest relief shelter immediately.",
+    FLOOD: "Flood Alert: Move to higher ground immediately.",
+    TSUNAMI: "Tsunami Alert: Evacuate coastal area immediately."
+  }
+};
+
+// ==========================================
+// 4. INBOUND CITIZEN SOS RESCUE PIPELINE
+// ==========================================
+
+// In-Memory Distress Queue
+let rescueRequests = [
+  {
+    id: "sos_101",
+    name: "Ravi Kumar & Family",
+    phone: "+919876543210",
+    lat: 11.9350,
+    lng: 79.8300,
+    trapped_count: 3,
+    medical_need: true,
+    status: "PENDING",
+    timestamp: new Date().toISOString()
+  }
+];
+
+// A. Citizen Ingestion Route (Triggered by Offline PWA or SMS Fallback)
+app.post('/api/rescue/sos-request', (req, res) => {
+  const { name, phone, lat, lng, trapped_count = 1, medical_need = false } = req.body;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ error: "Valid latitude and longitude coordinates are required." });
+  }
+
+  const newSOS = {
+    id: `sos_${Date.now().toString().slice(-4)}`,
+    name: name || "Anonymous Trapped Citizen",
+    phone: phone || "Unknown",
+    lat: Number(lat),
+    lng: Number(lng),
+    trapped_count: Number(trapped_count),
+    medical_need: Boolean(medical_need),
+    status: "PENDING",
+    timestamp: new Date().toISOString()
+  };
+
+  rescueRequests.unshift(newSOS);
+
+  // Broadcast immediate high-priority alert to Sara's Command Console
+  broadcastEvent({
+    event: 'NEW_SOS_ALERT',
+    sos: newSOS,
+    total_pending: rescueRequests.filter(r => r.status === 'PENDING').length
+  });
+
+  console.log(`[SOS INGESTION] Logged distress call ${newSOS.id} at [${newSOS.lat}, ${newSOS.lng}]`);
+  return res.status(201).json({ success: true, message: "SOS logged in central rescue queue", sos: newSOS });
+});
+
+// B. Operator: Retrieve Active Distress Beacons
+app.get('/api/rescue/active-sos', (req, res) => {
+  res.json({
+    total_pending: rescueRequests.filter(r => r.status === 'PENDING').length,
+    requests: rescueRequests
+  });
+});
+
+// C. Operator: Dispatch Rescue Team / Resolve Status
+app.patch('/api/rescue/resolve/:id', (req, res) => {
+  const { id } = req.params;
+  const target = rescueRequests.find(r => r.id === id);
+
+  if (!target) {
+    return res.status(404).json({ error: "Distress request ID not found." });
+  }
+
+  target.status = req.body.status || "RESCUE_DISPATCHED";
+
+  broadcastEvent({
+    event: 'SOS_STATUS_UPDATED',
+    sos_id: id,
+    status: target.status
+  });
+
+  return res.json({ success: true, updated: target });
+});
+
+// ==========================================
+// 5. OUTBOUND WARNING & GEOFENCING ROUTES
+// ==========================================
+
+// Geofence Warning Preview
 app.post('/api/alert/geofence-preview', async (req, res) => {
   try {
     const { polygon } = req.body;
@@ -88,22 +220,39 @@ app.post('/api/alert/geofence-preview', async (req, res) => {
   }
 });
 
-// 2. Dispatch Trigger + Live Telemetry Streaming
+// Outbound Disaster Dispatch Trigger
 app.post('/api/alert/dispatch', async (req, res) => {
   try {
     const { 
       polygon, 
       alertType = 'CYCLONE', 
       severity = 'EXTREME', 
-      message = 'Evacuate to nearest shelter immediately.' 
+      customMessage 
     } = req.body;
 
     const affectedTargets = await runSpatialFilter(polygon, citizens);
-    const directUsers = affectedTargets.filter(t => t.phone);
     const cellTowers = affectedTargets.filter(t => t.type === 'cell_tower');
     const cellIds = cellTowers.map(t => t.cell_id);
 
-    // Immediate HTTP response back to operator
+    const directUsers = affectedTargets
+      .filter(t => t.phone)
+      .map(user => {
+        const lang = user.language || 'en';
+        const localizedBody = customMessage || (alertTranslations[lang] && alertTranslations[lang][alertType]) || alertTranslations.en[alertType];
+        const assignedShelter = findNearestShelter(user.lat, user.lng);
+
+        return {
+          ...user,
+          alertMessage: localizedBody,
+          evacuationVector: {
+            shelterId: assignedShelter.id,
+            shelterName: assignedShelter.name,
+            distance_km: assignedShelter.distance_km,
+            shelterCoordinates: [assignedShelter.lng, assignedShelter.lat]
+          }
+        };
+      });
+
     res.json({
       status: 'DISPATCH_TRIGGERED',
       stats: {
@@ -111,22 +260,23 @@ app.post('/api/alert/dispatch', async (req, res) => {
         whatsapp_queued: directUsers.length,
         cell_towers_targeted: cellTowers.length
       },
+      targets: directUsers,
       timestamp: new Date().toISOString()
     });
 
-    // Stage 1: Native Cell Broadcast blast over WebSocket (<200ms)
+    // Native Cell Broadcast blast over WebSocket
     broadcastEvent({
       event: 'EMERGENCY_BROADCAST',
       tier: 'CELL_BROADCAST_RADIO',
       alertType,
       severity,
-      message,
+      message: alertTranslations.en[alertType] || customMessage,
       hazardPolygon: polygon,
       affectedCellIds: cellIds,
       timestamp: new Date().toISOString()
     });
 
-    // Stage 2: Incremental WhatsApp Delivery Simulation
+    // Telemetry Delivery Stream Simulation
     let deliveredCount = 0;
     let readCount = 0;
 
@@ -170,14 +320,7 @@ app.post('/api/alert/dispatch', async (req, res) => {
   }
 });
 
-// 3. Shelters and Presets Endpoints
-app.get('/api/shelters', (req, res) => {
-  res.json([
-    { id: "sh_01", name: "Coastal Community Center A", lat: 11.940, lng: 79.835, capacity: 500 },
-    { id: "sh_02", name: "Government High School Relief Hall", lat: 11.928, lng: 79.820, capacity: 1200 },
-    { id: "sh_03", name: "Central Indoor Stadium", lat: 11.952, lng: 79.815, capacity: 3000 }
-  ]);
-});
+app.get('/api/shelters', (req, res) => res.json(shelters));
 
 app.get('/api/hazards/presets', (req, res) => {
   res.json({
@@ -191,7 +334,6 @@ app.get('/api/hazards/presets', (req, res) => {
   });
 });
 
-// Listen on HTTP server (which holds the WebSocket listener)
 const PORT = 5000;
 server.listen(PORT, () => {
   console.log(`Vulcan Backend & WebSocket Server active on http://localhost:${PORT}`);
