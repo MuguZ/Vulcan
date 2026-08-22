@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vulcan WebSocket Test Monitor</title>
+  <style>
+    body { font-family: monospace; background: #0f172a; color: #38bdf8; padding: 20px; }
+    #log { background: #020617; padding: 15px; border-radius: 8px; height: 350px; overflow-y: auto; border: 1px solid #1e293b; color: #a5f3fc; }
+    .btn { background: #e11d48; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h2>Vulcan Realtime Alert Monitor</h2>
+  <button class="btn" onclick="triggerTestDispatch()">Trigger Test Dispatch</button>
+  <h3>Live WebSocket Telemetry Log:</h3>
+  <pre id="log"></pre>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const ws = new WebSocket('ws://localhost:5000');
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      logEl.innerText += `[${new Date().toLocaleTimeString()}] ` + JSON.stringify(data, null, 2) + '\n\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    async function triggerTestDispatch() {
+      await fetch('http://localhost:5000/api/alert/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          polygon: [[79.820, 11.930], [79.840, 11.930], [79.840, 11.950], [79.820, 11.950], [79.820, 11.930]],
+          alertType: 'CYCLONE',
+          severity: 'EXTREME'
+        })
+      });
+    }
+  </script>
+</body>
+</html>
