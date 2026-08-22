@@ -10,6 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 1. HTTP & WebSocket Server Initialization
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -35,6 +36,7 @@ function broadcastEvent(payload) {
   });
 }
 
+// 2. Python Spatial Geofencing Process Hook
 const pythonExecutable = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
 
 function runSpatialFilter(polygon, points) {
@@ -64,14 +66,13 @@ function runSpatialFilter(polygon, points) {
   });
 }
 
-// Relief Shelters Directory
+// 3. Shelters Directory & Haversine Routing Engine
 const shelters = [
   { id: "sh_01", name: "Coastal Community Center A", lat: 11.940, lng: 79.835, capacity: 500 },
   { id: "sh_02", name: "Government High School Relief Hall", lat: 11.928, lng: 79.820, capacity: 1200 },
   { id: "sh_03", name: "Central Indoor Stadium", lat: 11.952, lng: 79.815, capacity: 3000 }
 ];
 
-// Haversine Distance Calculator (km)
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -98,7 +99,6 @@ function findNearestShelter(userLat, userLng) {
   return nearest;
 }
 
-// Multi-lingual Translation Matrix
 const alertTranslations = {
   ta: {
     CYCLONE: "புயல் எச்சரிக்கை: உடனடியாக பாதுகாப்பான நிவாரண முகாமுக்கு செல்லவும்.",
@@ -117,7 +117,91 @@ const alertTranslations = {
   }
 };
 
-// 1. Geofence Preview Endpoint (Sara's HUD)
+// ==========================================
+// 4. INBOUND CITIZEN SOS RESCUE PIPELINE
+// ==========================================
+
+// In-Memory Distress Queue
+let rescueRequests = [
+  {
+    id: "sos_101",
+    name: "Ravi Kumar & Family",
+    phone: "+919876543210",
+    lat: 11.9350,
+    lng: 79.8300,
+    trapped_count: 3,
+    medical_need: true,
+    status: "PENDING",
+    timestamp: new Date().toISOString()
+  }
+];
+
+// A. Citizen Ingestion Route (Triggered by Offline PWA or SMS Fallback)
+app.post('/api/rescue/sos-request', (req, res) => {
+  const { name, phone, lat, lng, trapped_count = 1, medical_need = false } = req.body;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ error: "Valid latitude and longitude coordinates are required." });
+  }
+
+  const newSOS = {
+    id: `sos_${Date.now().toString().slice(-4)}`,
+    name: name || "Anonymous Trapped Citizen",
+    phone: phone || "Unknown",
+    lat: Number(lat),
+    lng: Number(lng),
+    trapped_count: Number(trapped_count),
+    medical_need: Boolean(medical_need),
+    status: "PENDING",
+    timestamp: new Date().toISOString()
+  };
+
+  rescueRequests.unshift(newSOS);
+
+  // Broadcast immediate high-priority alert to Sara's Command Console
+  broadcastEvent({
+    event: 'NEW_SOS_ALERT',
+    sos: newSOS,
+    total_pending: rescueRequests.filter(r => r.status === 'PENDING').length
+  });
+
+  console.log(`[SOS INGESTION] Logged distress call ${newSOS.id} at [${newSOS.lat}, ${newSOS.lng}]`);
+  return res.status(201).json({ success: true, message: "SOS logged in central rescue queue", sos: newSOS });
+});
+
+// B. Operator: Retrieve Active Distress Beacons
+app.get('/api/rescue/active-sos', (req, res) => {
+  res.json({
+    total_pending: rescueRequests.filter(r => r.status === 'PENDING').length,
+    requests: rescueRequests
+  });
+});
+
+// C. Operator: Dispatch Rescue Team / Resolve Status
+app.patch('/api/rescue/resolve/:id', (req, res) => {
+  const { id } = req.params;
+  const target = rescueRequests.find(r => r.id === id);
+
+  if (!target) {
+    return res.status(404).json({ error: "Distress request ID not found." });
+  }
+
+  target.status = req.body.status || "RESCUE_DISPATCHED";
+
+  broadcastEvent({
+    event: 'SOS_STATUS_UPDATED',
+    sos_id: id,
+    status: target.status
+  });
+
+  return res.json({ success: true, updated: target });
+});
+
+// ==========================================
+// 5. OUTBOUND WARNING & GEOFENCING ROUTES
+// ==========================================
+
+// Geofence Warning Preview
 app.post('/api/alert/geofence-preview', async (req, res) => {
   try {
     const { polygon } = req.body;
@@ -136,7 +220,7 @@ app.post('/api/alert/geofence-preview', async (req, res) => {
   }
 });
 
-// 2. Dispatch Trigger + Localized Routing + Live Telemetry
+// Outbound Disaster Dispatch Trigger
 app.post('/api/alert/dispatch', async (req, res) => {
   try {
     const { 
@@ -150,7 +234,6 @@ app.post('/api/alert/dispatch', async (req, res) => {
     const cellTowers = affectedTargets.filter(t => t.type === 'cell_tower');
     const cellIds = cellTowers.map(t => t.cell_id);
 
-    // Enrich direct citizen targets with nearest shelter & localized messages
     const directUsers = affectedTargets
       .filter(t => t.phone)
       .map(user => {
@@ -170,7 +253,6 @@ app.post('/api/alert/dispatch', async (req, res) => {
         };
       });
 
-    // 1. Operator HTTP Response
     res.json({
       status: 'DISPATCH_TRIGGERED',
       stats: {
@@ -182,7 +264,7 @@ app.post('/api/alert/dispatch', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // 2. Stage 1: Native Cell Broadcast Radio blast over WebSocket
+    // Native Cell Broadcast blast over WebSocket
     broadcastEvent({
       event: 'EMERGENCY_BROADCAST',
       tier: 'CELL_BROADCAST_RADIO',
@@ -194,7 +276,7 @@ app.post('/api/alert/dispatch', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // 3. Stage 2: WhatsApp Delivery Telemetry Simulation
+    // Telemetry Delivery Stream Simulation
     let deliveredCount = 0;
     let readCount = 0;
 
@@ -238,7 +320,6 @@ app.post('/api/alert/dispatch', async (req, res) => {
   }
 });
 
-// 3. Static Shelters & Hazard Presets
 app.get('/api/shelters', (req, res) => res.json(shelters));
 
 app.get('/api/hazards/presets', (req, res) => {
