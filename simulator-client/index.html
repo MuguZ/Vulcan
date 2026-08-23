@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulcan - Citizen SOS</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="phone">
+
+        <div class="header">
+            <h1>⚡ VULCAN</h1>
+            <p>Emergency Rescue</p>
+        </div>
+
+        <div class="status">
+            <span class="status-dot"></span>
+            <span>Emergency System Ready</span>
+        </div>
+
+        <div class="location-card">
+            <h2>📍 Your Location</h2>
+            <p id="location">Getting location...</p>
+        </div>
+
+        <div class="form-section">
+
+            <label for="casualties">Number of people needing help</label>
+            <input
+                type="number"
+                id="casualties"
+                min="1"
+                value="1"
+            >
+
+            <label for="medical">Medical Status</label>
+            <select id="medical">
+                <option value="NO_INJURY">No Injury</option>
+                <option value="INJURED">Injured</option>
+                <option value="CRITICAL">Critical</option>
+            </select>
+
+        </div>
+
+        <button id="sosButton">
+            🚨 SEND SOS
+        </button>
+
+        <p id="message"></p>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
