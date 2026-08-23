@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Vulcan Citizen Rescue</title>
 
@@ -32,6 +36,7 @@
 
         .card {
             background: #1e293b;
+
             border: 2px solid #334155;
             border-radius: 20px;
 
@@ -49,32 +54,29 @@
         h1 {
             font-size: 24px;
             color: #f43f5e;
+
             margin: 0 0 5px 0;
         }
 
         .desc {
             font-size: 13px;
             color: #94a3b8;
+
             margin-bottom: 20px;
+
             line-height: 1.5;
         }
 
-        .question {
-            font-size: 16px;
-            font-weight: bold;
-            margin: 20px 0 12px 0;
-        }
-
-        /* Trapped people counter */
-
         .counter-row {
             display: flex;
+
             justify-content: space-between;
             align-items: center;
 
             margin: 15px 0;
 
             background: #0f172a;
+
             padding: 10px 15px;
 
             border-radius: 10px;
@@ -107,7 +109,12 @@
             margin: 0 12px;
         }
 
-        /* Triage buttons */
+        .question {
+            font-size: 16px;
+            font-weight: bold;
+
+            margin: 20px 0 12px 0;
+        }
 
         .triage-container {
             display: flex;
@@ -132,8 +139,9 @@
             flex-direction: column;
             align-items: center;
 
-            transition: transform 0.1s,
-                        opacity 0.1s;
+            transition:
+                transform 0.1s,
+                opacity 0.1s;
         }
 
         .triage-button:active {
@@ -143,6 +151,7 @@
 
         .triage-icon {
             font-size: 28px;
+
             margin-bottom: 3px;
         }
 
@@ -153,31 +162,30 @@
 
         .triage-description {
             font-size: 12px;
+
             margin-top: 4px;
         }
 
-        /* Red - Life threatening */
+        /* RED - Life Threatening */
 
         .red {
             background: #dc2626;
             color: white;
         }
 
-        /* Yellow - Medical */
+        /* YELLOW - Injured / Medical */
 
         .yellow {
             background: #eab308;
             color: #111827;
         }
 
-        /* Blue - Food / Water */
+        /* BLUE - Food / Water */
 
         .blue {
             background: #2563eb;
             color: white;
         }
-
-        /* Status */
 
         .status-box {
             margin-top: 20px;
@@ -198,10 +206,6 @@
 
             line-height: 1.5;
         }
-
-        .warning {
-            color: #facc15;
-        }
     </style>
 </head>
 
@@ -215,6 +219,9 @@
             Emergency assistance during disasters.
             GPS location will be shared with rescue services.
         </p>
+
+
+        <!-- TRAPPED PEOPLE COUNTER -->
 
         <div class="counter-row">
 
@@ -246,13 +253,19 @@
 
         </div>
 
+
+        <!-- TRIAGE QUESTION -->
+
         <div class="question">
             What help do you need?
         </div>
 
+
+        <!-- TRIAGE BUTTONS -->
+
         <div class="triage-container">
 
-            <!-- RED: Life Threatening -->
+            <!-- RED -->
 
             <button
                 class="triage-button red"
@@ -274,7 +287,7 @@
             </button>
 
 
-            <!-- YELLOW: Injured / Medical -->
+            <!-- YELLOW -->
 
             <button
                 class="triage-button yellow"
@@ -296,7 +309,7 @@
             </button>
 
 
-            <!-- BLUE: Food / Water -->
+            <!-- BLUE -->
 
             <button
                 class="triage-button blue"
@@ -320,6 +333,8 @@
         </div>
 
 
+        <!-- STATUS -->
+
         <div
             id="status-box"
             class="status-box"
@@ -332,20 +347,19 @@
 
     <script>
 
-        /* --------------------------------
-           Trapped People Counter
-        -------------------------------- */
+        /* ==========================================
+           TRAPPED PEOPLE COUNTER
+        ========================================== */
 
         let peopleCount = 1;
 
 
         function changeCount(delta) {
 
-            peopleCount =
-                Math.max(
-                    1,
-                    peopleCount + delta
-                );
+            peopleCount = Math.max(
+                1,
+                peopleCount + delta
+            );
 
             document.getElementById(
                 "people-count"
@@ -353,9 +367,9 @@
         }
 
 
-        /* --------------------------------
-           Register Offline Service Worker
-        -------------------------------- */
+        /* ==========================================
+           SERVICE WORKER
+        ========================================== */
 
         if ("serviceWorker" in navigator) {
 
@@ -379,9 +393,18 @@
         }
 
 
-        /* --------------------------------
-           Main SOS Function
-        -------------------------------- */
+        /* ==========================================
+           MAIN SOS FUNCTION
+           
+           UPDATED:
+           emergency_type
+                ↓
+           triage_level
+
+           RED    = Priority 3
+           YELLOW = Priority 2
+           BLUE   = Priority 1
+        ========================================== */
 
         function triggerSOS(emergencyType) {
 
@@ -395,9 +418,52 @@
                 `⏳ Reading GPS location for ${emergencyType} request...`;
 
 
-            /* -----------------------------
-               Get GPS Location
-            ----------------------------- */
+            /* ------------------------------------------
+               MAP UI SELECTION TO TRIAGE LEVEL
+            ------------------------------------------ */
+
+            let triage_level = "BLUE";
+
+            let isMedical = false;
+
+
+            if (
+                emergencyType ===
+                "LIFE_THREATENING"
+            ) {
+
+                triage_level = "RED";
+
+                isMedical = true;
+
+            }
+
+            else if (
+                emergencyType ===
+                "MEDICAL"
+            ) {
+
+                triage_level = "YELLOW";
+
+                isMedical = true;
+
+            }
+
+            else if (
+                emergencyType ===
+                "FOOD_WATER"
+            ) {
+
+                triage_level = "BLUE";
+
+                isMedical = false;
+
+            }
+
+
+            /* ------------------------------------------
+               GET GPS LOCATION
+            ------------------------------------------ */
 
             navigator.geolocation.getCurrentPosition(
 
@@ -416,9 +482,9 @@
                         `📍 Location: ${lat}, ${lng} | Preparing request...`;
 
 
-                    /* -------------------------
+                    /* ----------------------------------
                        INTERNET AVAILABLE
-                    ------------------------- */
+                    ---------------------------------- */
 
                     if (navigator.onLine) {
 
@@ -429,6 +495,7 @@
                         fetch(
                             "http://localhost:5000/api/rescue/sos-request",
                             {
+
                                 method: "POST",
 
                                 headers: {
@@ -438,8 +505,13 @@
 
                                 body: JSON.stringify({
 
+                                    /*
+                                     * Backend can now
+                                     * identify the priority.
+                                     */
+
                                     name:
-                                        "Citizen in Distress",
+                                        `Citizen Distress (${triage_level})`,
 
                                     lat:
                                         Number(lat),
@@ -447,15 +519,24 @@
                                     lng:
                                         Number(lng),
 
+                                    /*
+                                     * IMPORTANT FIX
+                                     */
+
+                                    triage_level:
+                                        triage_level,
+
                                     trapped_count:
                                         peopleCount,
 
                                     medical_need:
-                                        emergencyType ===
-                                        "MEDICAL",
+                                        isMedical,
 
                                     emergency_type:
-                                        emergencyType
+                                        emergencyType,
+
+                                    notes:
+                                        `Dispatched via Offline PWA Lifeline [${emergencyType}]`
 
                                 })
                             }
@@ -468,10 +549,27 @@
                                 throw new Error(
                                     "Backend request failed"
                                 );
+
                             }
 
-                            status.innerText =
-                                "✅ Rescue request sent successfully.";
+                            return response.json();
+
+                        })
+
+                        .then((data) => {
+
+                            status.innerHTML =
+                                `
+                                <b>
+                                    ✅ SOS Received!
+                                    Priority Level:
+                                    ${triage_level}
+                                </b>
+                                <br>
+                                <small>
+                                    SDRF Boat ✅ Dispatched.
+                                </small>
+                                `;
 
                         })
 
@@ -490,7 +588,7 @@
                             openSMSFallback(
                                 lat,
                                 lng,
-                                emergencyType
+                                triage_level
                             );
 
                         });
@@ -498,9 +596,9 @@
                     }
 
 
-                    /* -------------------------
+                    /* ----------------------------------
                        INTERNET UNAVAILABLE
-                    ------------------------- */
+                    ---------------------------------- */
 
                     else {
 
@@ -511,33 +609,56 @@
                         openSMSFallback(
                             lat,
                             lng,
-                            emergencyType
+                            triage_level
                         );
+
                     }
 
                 },
 
 
-                /* -----------------------------
-                   GPS ERROR
-                ----------------------------- */
+                /* --------------------------------------
+                   GPS ERROR / TIMEOUT FALLBACK
+                -------------------------------------- */
 
                 (error) => {
 
-                    console.error(
-                        "GPS Error:",
+                    console.warn(
+                        "GPS Error. Using Puducherry coastal backup:",
                         error
                     );
 
+
+                    /*
+                     * Backup sector coordinates
+                     * specified in the project guide.
+                     */
+
+                    const fallbackLat =
+                        11.9350;
+
+                    const fallbackLng =
+                        79.8300;
+
+
                     status.innerText =
-                        "❌ GPS Error. Please allow location permission and try again.";
+                        "⚠️ GPS timeout. Using backup sector coordinates...";
+
+
+                    openSMSFallback(
+                        fallbackLat,
+                        fallbackLng,
+                        triage_level
+                    );
 
                 },
 
 
                 {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+
+                    timeout: 5000,
+
                     maximumAge: 0
                 }
 
@@ -545,18 +666,18 @@
         }
 
 
-        /* --------------------------------
+        /* ==========================================
            SMS FALLBACK
-        -------------------------------- */
+        ========================================== */
 
         function openSMSFallback(
             lat,
             lng,
-            emergencyType
+            triageLevel
         ) {
 
             const smsMessage =
-                `VULCAN_SOS:TYPE=${emergencyType},Lat=${lat},Lng=${lng},PEOPLE=${peopleCount}`;
+                `VULCAN_SOS:TYPE=${triageLevel},Lat=${lat},Lng=${lng},PEOPLE=${peopleCount}`;
 
 
             setTimeout(() => {
