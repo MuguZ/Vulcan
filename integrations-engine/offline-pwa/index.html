@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Vulcan Citizen Rescue</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                sans-serif;
+        }
+
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            min-height: 100vh;
+        }
+
+        .card {
+            background: #1e293b;
+
+            border: 2px solid #334155;
+            border-radius: 20px;
+
+            padding: 25px;
+
+            max-width: 400px;
+            width: 100%;
+
+            text-align: center;
+
+            box-shadow:
+                0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #f43f5e;
+
+            margin: 0 0 5px 0;
+        }
+
+        .desc {
+            font-size: 13px;
+            color: #94a3b8;
+
+            margin-bottom: 20px;
+
+            line-height: 1.5;
+        }
+
+        .counter-row {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: center;
+
+            margin: 15px 0;
+
+            background: #0f172a;
+
+            padding: 10px 15px;
+
+            border-radius: 10px;
+        }
+
+        .counter-btn {
+            background: #334155;
+            color: white;
+
+            border: none;
+
+            font-size: 18px;
+
+            width: 34px;
+            height: 34px;
+
+            border-radius: 6px;
+
+            cursor: pointer;
+        }
+
+        .counter-btn:active {
+            transform: scale(0.95);
+        }
+
+        #people-count {
+            font-size: 16px;
+            font-weight: bold;
+
+            margin: 0 12px;
+        }
+
+        .question {
+            font-size: 16px;
+            font-weight: bold;
+
+            margin: 20px 0 12px 0;
+        }
+
+        .triage-container {
+            display: flex;
+            flex-direction: column;
+
+            gap: 12px;
+
+            margin-top: 15px;
+        }
+
+        .triage-button {
+            width: 100%;
+
+            border: none;
+            border-radius: 14px;
+
+            padding: 16px;
+
+            cursor: pointer;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            transition:
+                transform 0.1s,
+                opacity 0.1s;
+        }
+
+        .triage-button:active {
+            transform: scale(0.97);
+            opacity: 0.85;
+        }
+
+        .triage-icon {
+            font-size: 28px;
+
+            margin-bottom: 3px;
+        }
+
+        .triage-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .triage-description {
+            font-size: 12px;
+
+            margin-top: 4px;
+        }
+
+        /* RED - Life Threatening */
+
+        .red {
+            background: #dc2626;
+            color: white;
+        }
+
+        /* YELLOW - Injured / Medical */
+
+        .yellow {
+            background: #eab308;
+            color: #111827;
+        }
+
+        /* BLUE - Food / Water */
+
+        .blue {
+            background: #2563eb;
+            color: white;
+        }
+
+        .status-box {
+            margin-top: 20px;
+
+            padding: 12px;
+
+            background: #0f172a;
+
+            border-radius: 10px;
+
+            font-size: 13px;
+
+            color: #38bdf8;
+
+            min-height: 45px;
+
+            word-break: break-word;
+
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+
+        <h1>🚨 VULCAN RESCUE</h1>
+
+        <p class="desc">
+            Emergency assistance during disasters.
+            GPS location will be shared with rescue services.
+        </p>
+
+
+        <!-- TRAPPED PEOPLE COUNTER -->
+
+        <div class="counter-row">
+
+            <span>
+                Trapped / Affected People:
+            </span>
+
+            <div>
+
+                <button
+                    class="counter-btn"
+                    onclick="changeCount(-1)"
+                >
+                    -
+                </button>
+
+                <span id="people-count">
+                    1
+                </span>
+
+                <button
+                    class="counter-btn"
+                    onclick="changeCount(1)"
+                >
+                    +
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- TRIAGE QUESTION -->
+
+        <div class="question">
+            What help do you need?
+        </div>
+
+
+        <!-- TRIAGE BUTTONS -->
+
+        <div class="triage-container">
+
+            <!-- RED -->
+
+            <button
+                class="triage-button red"
+                onclick="triggerSOS('LIFE_THREATENING')"
+            >
+
+                <span class="triage-icon">
+                    🔴
+                </span>
+
+                <span class="triage-title">
+                    RED
+                </span>
+
+                <span class="triage-description">
+                    Life Threatening - Immediate Rescue
+                </span>
+
+            </button>
+
+
+            <!-- YELLOW -->
+
+            <button
+                class="triage-button yellow"
+                onclick="triggerSOS('MEDICAL')"
+            >
+
+                <span class="triage-icon">
+                    🟡
+                </span>
+
+                <span class="triage-title">
+                    YELLOW
+                </span>
+
+                <span class="triage-description">
+                    Injured / Medical Assistance
+                </span>
+
+            </button>
+
+
+            <!-- BLUE -->
+
+            <button
+                class="triage-button blue"
+                onclick="triggerSOS('FOOD_WATER')"
+            >
+
+                <span class="triage-icon">
+                    🔵
+                </span>
+
+                <span class="triage-title">
+                    BLUE
+                </span>
+
+                <span class="triage-description">
+                    Food / Water Need
+                </span>
+
+            </button>
+
+        </div>
+
+
+        <!-- STATUS -->
+
+        <div
+            id="status-box"
+            class="status-box"
+        >
+            Ready to request emergency assistance...
+        </div>
+
+    </div>
+
+
+    <script>
+
+        /* ==========================================
+           TRAPPED PEOPLE COUNTER
+        ========================================== */
+
+        let peopleCount = 1;
+
+
+        function changeCount(delta) {
+
+            peopleCount = Math.max(
+                1,
+                peopleCount + delta
+            );
+
+            document.getElementById(
+                "people-count"
+            ).innerText = peopleCount;
+        }
+
+
+        /* ==========================================
+           SERVICE WORKER
+        ========================================== */
+
+        if ("serviceWorker" in navigator) {
+
+            navigator.serviceWorker
+                .register("sw.js")
+                .then(() => {
+
+                    console.log(
+                        "Vulcan Offline Engine Active"
+                    );
+
+                })
+                .catch((error) => {
+
+                    console.error(
+                        "Service Worker Error:",
+                        error
+                    );
+
+                });
+        }
+
+
+        /* ==========================================
+           MAIN SOS FUNCTION
+           
+           UPDATED:
+           emergency_type
+                ↓
+           triage_level
+
+           RED    = Priority 3
+           YELLOW = Priority 2
+           BLUE   = Priority 1
+        ========================================== */
+
+        function triggerSOS(emergencyType) {
+
+            const status =
+                document.getElementById(
+                    "status-box"
+                );
+
+
+            status.innerText =
+                `⏳ Reading GPS location for ${emergencyType} request...`;
+
+
+            /* ------------------------------------------
+               MAP UI SELECTION TO TRIAGE LEVEL
+            ------------------------------------------ */
+
+            let triage_level = "BLUE";
+
+            let isMedical = false;
+
+
+            if (
+                emergencyType ===
+                "LIFE_THREATENING"
+            ) {
+
+                triage_level = "RED";
+
+                isMedical = true;
+
+            }
+
+            else if (
+                emergencyType ===
+                "MEDICAL"
+            ) {
+
+                triage_level = "YELLOW";
+
+                isMedical = true;
+
+            }
+
+            else if (
+                emergencyType ===
+                "FOOD_WATER"
+            ) {
+
+                triage_level = "BLUE";
+
+                isMedical = false;
+
+            }
+
+
+            /* ------------------------------------------
+               GET GPS LOCATION
+            ------------------------------------------ */
+
+            navigator.geolocation.getCurrentPosition(
+
+                (position) => {
+
+                    const lat =
+                        position.coords.latitude
+                            .toFixed(4);
+
+                    const lng =
+                        position.coords.longitude
+                            .toFixed(4);
+
+
+                    status.innerText =
+                        `📍 Location: ${lat}, ${lng} | Preparing request...`;
+
+
+                    /* ----------------------------------
+                       INTERNET AVAILABLE
+                    ---------------------------------- */
+
+                    if (navigator.onLine) {
+
+                        status.innerText =
+                            "📡 Internet available. Sending rescue request...";
+
+
+                        fetch(
+                            "http://localhost:5000/api/rescue/sos-request",
+                            {
+
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+
+                                    /*
+                                     * Backend can now
+                                     * identify the priority.
+                                     */
+
+                                    name:
+                                        `Citizen Distress (${triage_level})`,
+
+                                    lat:
+                                        Number(lat),
+
+                                    lng:
+                                        Number(lng),
+
+                                    /*
+                                     * IMPORTANT FIX
+                                     */
+
+                                    triage_level:
+                                        triage_level,
+
+                                    trapped_count:
+                                        peopleCount,
+
+                                    medical_need:
+                                        isMedical,
+
+                                    emergency_type:
+                                        emergencyType,
+
+                                    notes:
+                                        `Dispatched via Offline PWA Lifeline [${emergencyType}]`
+
+                                })
+                            }
+                        )
+
+                        .then((response) => {
+
+                            if (!response.ok) {
+
+                                throw new Error(
+                                    "Backend request failed"
+                                );
+
+                            }
+
+                            return response.json();
+
+                        })
+
+                        .then((data) => {
+
+                            status.innerHTML =
+                                `
+                                <b>
+                                    ✅ SOS Received!
+                                    Priority Level:
+                                    ${triage_level}
+                                </b>
+                                <br>
+                                <small>
+                                    SDRF Boat ✅ Dispatched.
+                                </small>
+                                `;
+
+                        })
+
+                        .catch((error) => {
+
+                            console.error(
+                                "Backend Error:",
+                                error
+                            );
+
+
+                            status.innerText =
+                                "⚠️ Network failed. Opening SMS fallback...";
+
+
+                            openSMSFallback(
+                                lat,
+                                lng,
+                                triage_level
+                            );
+
+                        });
+
+                    }
+
+
+                    /* ----------------------------------
+                       INTERNET UNAVAILABLE
+                    ---------------------------------- */
+
+                    else {
+
+                        status.innerText =
+                            "⚠️ Internet unavailable. Opening SMS fallback...";
+
+
+                        openSMSFallback(
+                            lat,
+                            lng,
+                            triage_level
+                        );
+
+                    }
+
+                },
+
+
+                /* --------------------------------------
+                   GPS ERROR / TIMEOUT FALLBACK
+                -------------------------------------- */
+
+                (error) => {
+
+                    console.warn(
+                        "GPS Error. Using Puducherry coastal backup:",
+                        error
+                    );
+
+
+                    /*
+                     * Backup sector coordinates
+                     * specified in the project guide.
+                     */
+
+                    const fallbackLat =
+                        11.9350;
+
+                    const fallbackLng =
+                        79.8300;
+
+
+                    status.innerText =
+                        "⚠️ GPS timeout. Using backup sector coordinates...";
+
+
+                    openSMSFallback(
+                        fallbackLat,
+                        fallbackLng,
+                        triage_level
+                    );
+
+                },
+
+
+                {
+                    enableHighAccuracy: true,
+
+                    timeout: 5000,
+
+                    maximumAge: 0
+                }
+
+            );
+        }
+
+
+        /* ==========================================
+           SMS FALLBACK
+        ========================================== */
+
+        function openSMSFallback(
+            lat,
+            lng,
+            triageLevel
+        ) {
+
+            const smsMessage =
+                `VULCAN_SOS:TYPE=${triageLevel},Lat=${lat},Lng=${lng},PEOPLE=${peopleCount}`;
+
+
+            setTimeout(() => {
+
+                window.location.href =
+                    `sms:112?body=${encodeURIComponent(
+                        smsMessage
+                    )}`;
+
+            }, 1000);
+        }
+
+    </script>
+
+</body>
+</html>
