@@ -1,116 +1,138 @@
-import './styles/global.css';
+import React from 'react';
 import TacticalMap from './components/Map/TacticalMap';
 import TriageQueue from './components/HUD/TriageQueue';
-import VaultDrawer from './components/UI/VaultDrawer';
+import VaultDrawer from './components/HUD/VaultDrawer'; // FIXED: Correct path
 import { useVulcanSocket } from './hooks/useVulcanSocket';
 import { useVulcanStore } from './store/vulcanStore';
-import { useState } from 'react';
+import './styles/global.css';
 
-function App() {
-  useVulcanSocket();
-  const connectionStatus = useVulcanStore((state) => state.connectionStatus);
-  const addNewSOS = useVulcanStore((state) => state.addNewSOS);
-  const activeSOSQueue = useVulcanStore((state) => state.activeSOSQueue);
-  
-  const [showRedVignette, setShowRedVignette] = useState(false);
+export default function App() {
+  useVulcanSocket('ws://localhost:5000');
+  const { isConnected, sosList, addSOSAlert, addHazard, setAlertPolygon } = useVulcanStore();
 
-  const simulateAlert = (triageLevel) => {
-    const mockSOS = {
-      id: `sos_${Date.now().toString().slice(-4)}`,
-      name: `CITIZEN_${Math.floor(Math.random() * 900) + 100}`,
-      lat: 20.5937 + (Math.random() * 10 - 5),
-      lng: 78.9629 + (Math.random() * 10 - 5),
-      trapped_count: Math.floor(Math.random() * 5) + 1,
-      medical_need: triageLevel === 'RED' || triageLevel === 'YELLOW',
-      triage_level: triageLevel,
-      status: 'PENDING',
-      timestamp: new Date().toISOString()
-    };
-    addNewSOS(mockSOS);
-
-    if (triageLevel === 'RED') {
-      setShowRedVignette(true);
-      setTimeout(() => setShowRedVignette(false), 2000);
-    }
+  // 1. Broadcast Geofence (Updates map instantly + sends to backend)
+  const handleDispatchCycloneAlert = async () => {
+    const polygon = [
+      [79.815, 11.925], [79.845, 11.925], [79.845, 11.955], [79.815, 11.955], [79.815, 11.925],
+    ];
+    setAlertPolygon(polygon); // Force local update
+    try {
+      await fetch('http://localhost:5000/api/alert/dispatch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ polygon, alertType: 'CYCLONE', severity: 'EXTREME' }),
+      });
+    } catch (e) { console.log("Backend offline, UI updated locally"); }
   };
 
-  const tickerText = activeSOSQueue.map(sos => 
+  // 2. Pin Flood Hazard (Updates map instantly + sends to backend)
+  const handleReportHazard = async () => {
+    const hazardData = {
+      id: 'haz_' + Date.now(), 
+      type: 'ROAD_FLOODED', severity: 'CRITICAL',
+      description: 'Goubert Avenue completely flooded. Avoid beach promenade.',
+      lat: 11.934, lng: 79.835, reported_by: 'Volunteer Priya',
+    };
+    addHazard(hazardData); // Force local update
+    try {
+      await fetch('http://localhost:5000/api/hazards/report', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(hazardData),
+      });
+    } catch (e) { console.log("Backend offline, UI updated locally"); }
+  };
+
+  // 3. Inject SOS (Updates map instantly + sends to backend)
+  const handleInjectSOS = async (triage_level) => {
+    const names = { RED: 'Muthu Roof Trap', YELLOW: 'Ananya Medical', BLUE: 'David Food/Water' };
+    const baseOffsets = { RED: 0.005, YELLOW: -0.003, BLUE: 0.002 };
+    const scores = { RED: 3, YELLOW: 2, BLUE: 1 };
+
+    // Add random scatter so markers don't stack on top of each other!
+    const randomScatter = () => (Math.random() * 0.01) - 0.005;
+
+    const sosData = {
+      id: 'sos_' + Date.now() + '_' + Math.floor(Math.random() * 1000), 
+      name: names[triage_level] + ' #' + Math.floor(Math.random() * 900 + 100), 
+      lat: 11.935 + baseOffsets[triage_level] + randomScatter(),
+      lng: 79.830 + baseOffsets[triage_level] + randomScatter(),
+      triage_level,
+      trapped_count: triage_level === 'RED' ? 4 : triage_level === 'YELLOW' ? 2 : 1,
+      medical_need: triage_level === 'RED' || triage_level === 'YELLOW',
+      status: 'PENDING',
+      priority_score: scores[triage_level],
+      timestamp: new Date().toISOString()
+    };
+    
+    addSOSAlert(sosData); // Force local update
+    
+    try {
+      await fetch('http://localhost:5000/api/rescue/sos-request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sosData),
+      });
+    } catch (e) { console.log("Backend offline"); }
+  };
+
+  const safeSosList = sosList || [];
+  const tickerText = safeSosList.map(sos => 
     `[${sos.triage_level}] ${sos.name} // TRAPPED: ${sos.trapped_count} // LAT: ${sos.lat.toFixed(3)} LNG: ${sos.lng.toFixed(3)}  +++  `
   ).join('') || "SYSTEM NOMINAL. AWAITING DISTRESS SIGNALS. ALL CHANNELS CLEAR. +++ ";
 
   return (
-    <>
-      <div className={`red-vignette ${showRedVignette ? 'active' : ''}`}></div>
-
-      <div className="app-root">
-        <header className="top-bar">
-          <div className="wordmark">Vulcan // SDRF Command</div>
-          <div style={{fontFamily: 'IBM Plex Mono', fontSize: '0.8rem', color: 'var(--text-muted)'}}>
-            <span className="status-dot"></span>
-            SYS NOMINAL // CONN: {connectionStatus}
-          </div>
-        </header>
-        
-        <div className="hazard-tape"></div>
-
-        <div className="teleprinter-ticker">
-          <div className="ticker-content">{tickerText}</div>
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0b0f19', color: '#fff' }}>
+      
+      {/* HEADER: Z-INDEX 1000 */}
+      <header style={{ height: '50px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', position: 'relative', zIndex: 1000, background: '#0b0f19' }}>
+        <div style={{ fontWeight: 'bold', letterSpacing: '2px', color: '#f43f5e' }}>VULCAN // SDRF COMMAND HUD</div>
+        <div style={{ fontSize: '12px', display: 'flex', gap: '15px' }}>
+          <span>STATUS: <b style={{ color: '#22c55e' }}>NOMINAL</b></span>
+          <span>GRID: <b style={{ color: isConnected ? '#22c55e' : '#ef4444' }}>{isConnected ? 'ONLINE' : 'OFFLINE'}</b></span>
         </div>
+      </header>
 
-        <div className="main-content">
-          <aside className="side-panel left">
-            <div className="panel-title">Dispatch Simulation</div>
-            <p style={{fontFamily: 'IBM Plex Mono', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '20px'}}>
-              Inject mock distress signals for operator training.
-            </p>
-            
-            <button className="physical-btn btn-red" onClick={() => simulateAlert('RED')}>
-              <span style={{color: 'var(--triage-red)', fontSize: '1.2rem'}}>●</span> INJECT RED (CRITICAL)
-            </button>
-            <button className="physical-btn btn-yellow" onClick={() => simulateAlert('YELLOW')}>
-              <span style={{color: 'var(--triage-yellow)', fontSize: '1.2rem'}}>●</span> INJECT YELLOW (INJURED)
-            </button>
-            <button className="physical-btn btn-blue" onClick={() => simulateAlert('BLUE')}>
-              <span style={{color: 'var(--triage-blue)', fontSize: '1.2rem'}}>●</span> INJECT BLUE (STRANDED)
-            </button>
-          </aside>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        
+        {/* LEFT SIDEBAR: Z-INDEX 1000 */}
+        <div style={{ width: '260px', background: '#0f172a', borderRight: '1px solid #1e293b', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1000 }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#94a3b8' }}>OPERATOR CONTROLS</div>
           
-          <main className="map-wrapper">
-            <TacticalMap />
-          </main>
+          <button onClick={handleDispatchCycloneAlert} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+            🚨 BROADCAST GEOFENCE
+          </button>
           
-          <aside className="side-panel right">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div className="panel-title" style={{ marginBottom: 0 }}>Active Case Files ({activeSOSQueue.length})</div>
-              
-              <button 
-                onClick={() => useVulcanStore.getState().clearDispatched()}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #444',
-                  color: '#888',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem',
-                  fontFamily: 'Montserrat',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--triage-red)'; e.currentTarget.style.color = 'var(--triage-red)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.borderColor = '#444'; e.currentTarget.style.color = '#888'; }}
-              >
-                ✕ CLEAR
-              </button>
-            </div>
-            <TriageQueue />
-          </aside>
+          <button onClick={handleReportHazard} style={{ background: '#d97706', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+            ⚠ PIN FLOOD HAZARD
+          </button>
+          
+          <hr style={{ borderColor: '#1e293b', width: '100%', margin: '8px 0' }} />
+          
+          <div style={{ fontSize: '11px', color: '#64748b' }}>TEST TRIAGE INJECTION</div>
+          
+          <button onClick={() => handleInjectSOS('RED')} style={{ background: '#1e293b', border: '1px solid #ef4444', color: '#ef4444', padding: '8px', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>
+            🔴 Inject RED (Critical)
+          </button>
+          
+          <button onClick={() => handleInjectSOS('YELLOW')} style={{ background: '#1e293b', border: '1px solid #f59e0b', color: '#f59e0b', padding: '8px', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>
+            🟡 Inject YELLOW (Medical)
+          </button>
+          
+          <button onClick={() => handleInjectSOS('BLUE')} style={{ background: '#1e293b', border: '1px solid #3b82f6', color: '#3b82f6', padding: '8px', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}>
+            🔵 Inject BLUE (Assistance)
+          </button>
+        </div>
+        
+        {/* MAP: Z-INDEX 1 */}
+        <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+          <TacticalMap />
+        </div>
+        
+        {/* RIGHT SIDEBAR: Z-INDEX 1000 */}
+        <div style={{ width: '320px', background: '#0f172a', borderLeft: '1px solid #1e293b', padding: '16px', overflowY: 'auto', position: 'relative', zIndex: 1000 }}>
+          <TriageQueue />
         </div>
       </div>
 
       <VaultDrawer />
-    </>
+    </div>
   );
 }
-
-export default App;

@@ -1,68 +1,52 @@
-// src/hooks/useVulcanSocket.js
 import { useEffect, useRef } from 'react';
 import { useVulcanStore } from '../store/vulcanStore';
 
-// Synthesized Sonar Ping (Web Audio API)
-const playSonarPing = () => {
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.5);
-  
-  gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-  
-  oscillator.start();
-  oscillator.stop(audioCtx.currentTime + 0.5);
-};
-
-export const useVulcanSocket = () => {
-  const { addNewSOS, updateSOSStatus, setConnectionStatus } = useVulcanStore();
-  const ws = useRef(null);
+export function useVulcanSocket(url = 'ws://localhost:5000') {
+  const socketRef = useRef(null);
+  const { setConnected, addSOSAlert, addHazard, setAlertPolygon, updateSOSStatus } = useVulcanStore();
 
   useEffect(() => {
-    // Connect to Mugu's Backend
-    ws.current = new WebSocket('ws://localhost:5000');
+    const ws = new WebSocket(url);
+    socketRef.current = ws;
 
-    ws.current.onopen = () => {
-      setConnectionStatus('ONLINE');
-      console.log('VULCAN ENGINE CONNECTED');
+    ws.onopen = () => {
+      console.log('[VULCAN WS] Connected to backend');
+      setConnected(true);
     };
 
-    ws.current.onclose = () => {
-      setConnectionStatus('OFFLINE');
-      console.log('VULCAN ENGINE DISCONNECTED');
-    };
-
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.event === 'NEW_SOS_ALERT') {
-        addNewSOS(data.sos);
-        playSonarPing();
-        triggerScreenShake();
-      } 
-      
-      if (data.event === 'SOS_STATUS_UPDATED') {
-        updateSOSStatus(data.sos_id, data.status);
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        console.log('[VULCAN WS] Message received:', payload);
+        
+        switch (payload.event) {
+          case 'EMERGENCY_BROADCAST':
+            if (payload.hazardPolygon) {
+              setAlertPolygon(payload.hazardPolygon);
+            }
+            break;
+          case 'NEW_SOS_ALERT':
+            addSOSAlert(payload.sos);
+            break;
+          case 'NEW_HAZARD_REPORTED':
+            addHazard(payload.hazard);
+            break;
+          case 'SOS_STATUS_UPDATED':
+            updateSOSStatus(payload.sos_id, payload.status);
+            break;
+          default:
+            break;
+        }
+      } catch (err) {
+        console.error('[VULCAN WS] Parse error:', err);
       }
     };
 
-    return () => ws.current.close();
-  }, []);
-};
+    ws.onclose = () => setConnected(false);
+    ws.onerror = () => setConnected(false);
 
-// Screen Shake Trigger
-const triggerScreenShake = () => {
-  const app = document.querySelector('.vulcan-console');
-  if (app) {
-    app.classList.add('shake-active');
-    setTimeout(() => app.classList.remove('shake-active'), 400);
-  }
-};
+    return () => ws.close();
+  }, [url]);
+
+  return socketRef;
+}
