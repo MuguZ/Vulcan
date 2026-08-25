@@ -12,45 +12,159 @@
 
     <div class="phone">
 
+        <!-- Header -->
         <div class="header">
-            <h1>⚡ VULCAN</h1>
-            <p>Emergency Rescue</p>
+            <div class="logo-icon">⚡</div>
+            <h1>VULCAN</h1>
+            <p>Disaster Rescue System</p>
         </div>
 
+        <!-- Network Status -->
         <div class="status">
             <span class="status-dot"></span>
-            <span>Emergency System Ready</span>
+
+            <div>
+                <strong>System Online</strong>
+                <small>Emergency communication available</small>
+            </div>
         </div>
 
+        <!-- Location -->
         <div class="location-card">
-            <h2>📍 Your Location</h2>
-            <p id="location">Getting location...</p>
+
+            <div class="card-title">
+                <span class="icon">📍</span>
+
+                <div>
+                    <h2>Location</h2>
+                    <span>Current location</span>
+                </div>
+            </div>
+
+            <!-- Automatic location -->
+            <div class="location-box">
+                <label>Current Location</label>
+                <p id="location">Getting location...</p>
+            </div>
+
+        </div>
+
+        <!-- Emergency Information -->
+        <div class="section-title">
+            <h2>Emergency Information</h2>
+            <p>Provide details about the situation</p>
         </div>
 
         <div class="form-section">
 
-            <label for="casualties">Number of people needing help</label>
-            <input
-                type="number"
-                id="casualties"
-                min="1"
-                value="1"
-            >
+            <!-- Number of people -->
+            <div class="input-group">
 
-            <label for="medical">Medical Status</label>
-            <select id="medical">
-                <option value="NO_INJURY">No Injury</option>
-                <option value="INJURED">Injured</option>
-                <option value="CRITICAL">Critical</option>
-            </select>
+                <label for="casualties">
+                    👥 People Needing Rescue
+                </label>
+
+                <input
+                    type="number"
+                    id="casualties"
+                    min="1"
+                    value="1"
+                >
+
+            </div>
+
+            <!-- Medical Status -->
+            <div class="input-group">
+
+                <label for="medical">
+                    🏥 Medical Status
+                </label>
+
+                <select id="medical">
+
+                    <option value="NO_INJURY">
+                        No Injury
+                    </option>
+
+                    <option value="INJURED">
+                        Injured
+                    </option>
+
+                    <option value="CRITICAL">
+                        Critical
+                    </option>
+
+                </select>
+
+            </div>
 
         </div>
 
+        <!-- Emergency Priority -->
+        <div class="priority-card">
+
+            <h2>🚨 Emergency Priority</h2>
+
+            <div class="priority-item green">
+
+                <span class="priority-dot"></span>
+
+                <div>
+                    <strong>Less Urgent</strong>
+                    <small>Can wait for assistance</small>
+                </div>
+
+            </div>
+
+            <div class="priority-item yellow">
+
+                <span class="priority-dot"></span>
+
+                <div>
+                    <strong>Urgent</strong>
+                    <small>Needs assistance soon</small>
+                </div>
+
+            </div>
+
+            <div class="priority-item red">
+
+                <span class="priority-dot"></span>
+
+                <div>
+                    <strong>Very Urgent</strong>
+                    <small>Immediate assistance required</small>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- SOS Button -->
         <button id="sosButton">
-            🚨 SEND SOS
+
+            <span class="sos-icon">🚨</span>
+
+            <span>
+                <strong>SEND SOS</strong>
+                <small>Request Emergency Help</small>
+            </span>
+
         </button>
 
+        <!-- Message -->
         <p id="message"></p>
+
+        <!-- Footer -->
+        <div class="footer">
+
+            <span>VULCAN</span>
+
+            <span>
+                Emergency Rescue Network
+            </span>
+
+        </div>
 
     </div>
 
