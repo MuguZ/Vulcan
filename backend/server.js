@@ -8,9 +8,13 @@ const citizens = require('./mock_data/citizens.json');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Increased body limit to support base64 crowdsourced hazard images
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// 1. HTTP & WebSocket Server Initialization
+// ==========================================
+// 1. HTTP & WEBSOCKET SERVER INITIALIZATION
+// ==========================================
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -36,7 +40,9 @@ function broadcastEvent(payload) {
   });
 }
 
-// 2. Python Spatial Geofencing Process Hook
+// ==========================================
+// 2. PYTHON SPATIAL GEOFENCING PROCESS HOOK
+// ==========================================
 const pythonExecutable = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
 
 function runSpatialFilter(polygon, points) {
@@ -66,11 +72,13 @@ function runSpatialFilter(polygon, points) {
   });
 }
 
-// 3. Shelters Directory & Dynamic Haversine Routing Engine
+// ==========================================
+// 3. SHELTERS & HAVERSINE ROUTING ENGINE
+// ==========================================
 const shelters = [
-  { id: "sh_01", name: "Coastal Community Center A", lat: 11.940, lng: 79.835, capacity: 500 },
-  { id: "sh_02", name: "Government High School Relief Hall", lat: 11.928, lng: 79.820, capacity: 1200 },
-  { id: "sh_03", name: "Central Indoor Stadium", lat: 11.952, lng: 79.815, capacity: 3000 }
+  { id: "sh_01", name: "Coastal Community Center A", lat: 11.940, lng: 79.835, capacity: 500, status: "OPEN" },
+  { id: "sh_02", name: "Government High School Relief Hall", lat: 11.928, lng: 79.820, capacity: 1200, status: "OPEN" },
+  { id: "sh_03", name: "Central Indoor Stadium", lat: 11.952, lng: 79.815, capacity: 3000, status: "OPEN" }
 ];
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -94,12 +102,20 @@ let activeHazards = [
     description: "Beach Road submerged under 4ft water. Impassable.",
     lat: 11.937,
     lng: 79.834,
+    image_url: null,
     reported_by: "Ground Volunteer 04",
     timestamp: new Date().toISOString()
   }
 ];
 
-// Obstacle-Aware Safe Shelter Routing
+function isPathBlockedByHazard(cLat, cLng, sLat, sLng, hLat, hLng, thresholdKm = 0.4) {
+  const d1 = calculateDistance(cLat, cLng, hLat, hLng);
+  const d2 = calculateDistance(hLat, hLng, sLat, sLng);
+  const direct = calculateDistance(cLat, cLng, sLat, sLng);
+  return (d1 + d2) <= (direct + thresholdKm);
+}
+
+// Internal Shelter Matcher for Outbound Broadcasts
 function findSafeShelter(userLat, userLng) {
   let bestShelter = null;
   let minWeightedDist = Infinity;
@@ -108,14 +124,12 @@ function findSafeShelter(userLat, userLng) {
     let actualDist = calculateDistance(userLat, userLng, s.lat, s.lng);
     let effectiveDist = actualDist;
 
-    // Check if an active severe roadblock is within 400m of the direct vector
     const blockedByHazard = activeHazards.some(h => 
-      calculateDistance(h.lat, h.lng, s.lat, s.lng) < 0.4 ||
-      calculateDistance(h.lat, h.lng, userLat, userLng) < 0.3
+      isPathBlockedByHazard(userLat, userLng, s.lat, s.lng, h.lat, h.lng)
     );
 
     if (blockedByHazard) {
-      effectiveDist += 10.0; // Penalty weight forces routing to alternate safe shelter
+      effectiveDist += 10.0; // Penalty weight for blocked path
     }
 
     if (effectiveDist < minWeightedDist) {
@@ -145,10 +159,9 @@ const alertTranslations = {
 };
 
 // ==========================================
-// 4. INBOUND 3-TIER CITIZEN SOS RESCUE PIPELINE
+// 4. INBOUND 3-TIER CITIZEN SOS PIPELINE
 // ==========================================
-
-const TRIAGE_PRIORITY = { RED: 3, YELLOW: 2, BLUE: 1 };
+const TRIAGE_PRIORITY = { RED: 3, YELLOW: 2, BLUE: 1 }; //[cite: 1]
 
 let rescueRequests = [
   {
@@ -166,7 +179,7 @@ let rescueRequests = [
   }
 ];
 
-// A. Citizen Ingestion Route (Offline PWA / SMS Fallback / Mobile Simulator)
+// Citizen SOS Ingestion
 app.post('/api/rescue/sos-request', (req, res) => {
   const { 
     name, 
@@ -195,18 +208,16 @@ app.post('/api/rescue/sos-request', (req, res) => {
     lng: Number(lng),
     trapped_count: Number(trapped_count),
     triage_level: cleanTriage,
-    priority_score: TRIAGE_PRIORITY[cleanTriage],
-    medical_need: Boolean(medical_need || cleanTriage === 'YELLOW' || cleanTriage === 'RED'),
+    priority_score: TRIAGE_PRIORITY[cleanTriage], //[cite: 1]
+    medical_need: Boolean(medical_need || cleanTriage === 'YELLOW' || cleanTriage === 'RED'), //[cite: 1]
     notes: notes || "",
     status: "PENDING",
     timestamp: new Date().toISOString()
   };
 
   rescueRequests.push(newSOS);
-  // Sort queue by priority: RED (3) -> YELLOW (2) -> BLUE (1)
   rescueRequests.sort((a, b) => b.priority_score - a.priority_score);
 
-  // Broadcast immediate high-priority alert to Sara's Command Console
   broadcastEvent({
     event: 'NEW_SOS_ALERT',
     sos: newSOS,
@@ -217,7 +228,7 @@ app.post('/api/rescue/sos-request', (req, res) => {
   return res.status(201).json({ success: true, message: "Distress beacon queued", sos: newSOS });
 });
 
-// B. Operator: Retrieve Active Distress Beacons
+// Retrieve Active Beacons
 app.get('/api/rescue/active-sos', (req, res) => {
   res.json({
     total_pending: rescueRequests.filter(r => r.status === 'PENDING').length,
@@ -225,7 +236,7 @@ app.get('/api/rescue/active-sos', (req, res) => {
   });
 });
 
-// C. Operator: Dispatch Rescue Team / Resolve Status
+// Dispatch / Update SOS Status
 app.patch('/api/rescue/resolve/:id', (req, res) => {
   const { id } = req.params;
   const target = rescueRequests.find(r => r.id === id);
@@ -246,12 +257,12 @@ app.patch('/api/rescue/resolve/:id', (req, res) => {
 });
 
 // ==========================================
-// 5. CROWDSOURCED HAZARD & OBSTACLE GRID
+// 5. CROWDSOURCED HAZARDS & DYNAMIC ROUTING
 // ==========================================
 
-// Ingest Citizen / Volunteer Ground Hazard
+// Ingest Ground Hazard (Supports base64 / URL images)[cite: 2]
 app.post('/api/hazards/report', (req, res) => {
-  const { type, severity = "HIGH", description, lat, lng, reported_by } = req.body;
+  const { type, severity = "HIGH", description, lat, lng, image_url, reported_by } = req.body;
 
   if (!lat || !lng) {
     return res.status(400).json({ error: "Coordinates required for hazard pinning." });
@@ -264,7 +275,8 @@ app.post('/api/hazards/report', (req, res) => {
     description: description || "Hazard reported on transit corridor",
     lat: Number(lat),
     lng: Number(lng),
-    reported_by: reported_by || "Anonymous Volunteer",
+    image_url: image_url || null,
+    reported_by: reported_by || "Ground Volunteer",
     timestamp: new Date().toISOString()
   };
 
@@ -284,11 +296,73 @@ app.get('/api/hazards/active', (req, res) => {
   res.json({ total_active: activeHazards.length, hazards: activeHazards });
 });
 
+// Dynamic Evacuation Route Endpoint
+app.post('/api/routing/evacuation-route', (req, res) => {
+  const { lat, lng } = req.body;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ success: false, message: "Valid latitude and longitude required." });
+  }
+
+  const citizenLat = Number(lat);
+  const citizenLng = Number(lng);
+
+  const evaluatedShelters = shelters.map(shelter => {
+    let baseDistanceKm = calculateDistance(citizenLat, citizenLng, shelter.lat, shelter.lng);
+    let penaltyScoreKm = 0;
+    let blockingHazards = [];
+
+    activeHazards.forEach(hazard => {
+      if (isPathBlockedByHazard(citizenLat, citizenLng, shelter.lat, shelter.lng, hazard.lat, hazard.lng)) {
+        penaltyScoreKm += 10.0; // Avoidance penalty
+        blockingHazards.push(hazard);
+      }
+    });
+
+    return {
+      shelter,
+      direct_distance_km: baseDistanceKm,
+      weighted_distance_km: Number((baseDistanceKm + penaltyScoreKm).toFixed(2)),
+      has_hazard_penalty: blockingHazards.length > 0,
+      blocking_hazards: blockingHazards
+    };
+  });
+
+  evaluatedShelters.sort((a, b) => a.weighted_distance_km - b.weighted_distance_km);
+  const bestOption = evaluatedShelters[0];
+
+  const waypoints = [
+    [citizenLat, citizenLng],
+    ...(bestOption.has_hazard_penalty
+      ? [[(citizenLat + bestOption.shelter.lat) / 2 + 0.004, (citizenLng + bestOption.shelter.lng) / 2 - 0.004]]
+      : []),
+    [bestOption.shelter.lat, bestOption.shelter.lng]
+  ];
+
+  return res.json({
+    success: true,
+    destination_shelter: bestOption.shelter,
+    route_metrics: {
+      direct_distance_km: bestOption.direct_distance_km,
+      weighted_distance_km: bestOption.weighted_distance_km,
+      avoided_hazards_count: bestOption.blocking_hazards.length,
+      estimated_travel_time_mins: Math.ceil(bestOption.weighted_distance_km * 4)
+    },
+    waypoints,
+    alternative_shelters: evaluatedShelters.slice(1).map(e => ({
+      name: e.shelter.name,
+      distance_km: e.direct_distance_km
+    }))
+  });
+});
+
+app.get('/api/routing/shelters', (req, res) => {
+  res.json({ success: true, shelters });
+});
+
 // ==========================================
 // 6. OUTBOUND WARNING & GEOFENCING ROUTES
 // ==========================================
-
-// Geofence Warning Preview
 app.post('/api/alert/geofence-preview', async (req, res) => {
   try {
     const { polygon } = req.body;
@@ -307,7 +381,6 @@ app.post('/api/alert/geofence-preview', async (req, res) => {
   }
 });
 
-// Outbound Disaster Dispatch Trigger
 app.post('/api/alert/dispatch', async (req, res) => {
   try {
     const { 
@@ -352,7 +425,6 @@ app.post('/api/alert/dispatch', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Native Cell Broadcast blast over WebSocket
     broadcastEvent({
       event: 'EMERGENCY_BROADCAST',
       tier: 'CELL_BROADCAST_RADIO',
@@ -364,7 +436,6 @@ app.post('/api/alert/dispatch', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Telemetry Delivery Stream Simulation
     let deliveredCount = 0;
     let readCount = 0;
 
@@ -424,5 +495,5 @@ app.get('/api/hazards/presets', (req, res) => {
 
 const PORT = 5000;
 server.listen(PORT, () => {
-  console.log(`Vulcan Backend & WebSocket Server active on http://localhost:${PORT}`);
+  console.log(`[VULCAN CORE] Backend & WebSocket Server active on http://localhost:${PORT}`);
 });
