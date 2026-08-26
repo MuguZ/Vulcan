@@ -1,19 +1,29 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Vulcan Disaster Management Backend",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "ws": "^8.21.3"
+    "@anthropic-ai/sdk": "^0.120.0",
+    "cloudinary": "^2.10.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.5.1",
+    "groq-sdk": "^1.5.0",
+    "mongoose": "^8.24.4",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.104.0",
+    "uuid": "^14.0.2",
+    "ws": "^8.18.0",
+    "zod": "^3.25.76"
   }
 }
